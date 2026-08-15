@@ -1,0 +1,13 @@
+[Unit]
+Description=Déclenche le pipeline chaque nuit à 3 h (Europe/Paris)
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+
+# Étale le démarrage sur 10 minutes : inutile de taper l'API France Travail
+# à la seconde près, et cela évite un pic de charge prévisible.
+RandomizedDelaySec=600
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,25 @@
+# Caddy obtient et renouvelle le certificat TLS tout seul.
+# `DOMAIN` vient du fichier .env (ex. emploi.mondomaine.fr).
+
+{$DOMAIN} {
+	encode gzip
+
+	# Seul le dashboard est exposé. Le service `agents` n'a aucune route ici :
+	# il ne doit être joignable que depuis le réseau Docker interne.
+	reverse_proxy web:3000
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	log {
+		output file /data/access.log {
+			roll_size 10MiB
+			roll_keep 3
+		}
+	}
+}

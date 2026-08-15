@@ -1,0 +1,77 @@
+# Pile complète sur le VPS Hostinger KVM 2.
+#
+#   caddy  : seul service exposé sur Internet (80/443), HTTPS automatique
+#   web    : dashboard Next.js
+#   agents : pipeline Python, joignable uniquement depuis le réseau interne
+
+services:
+  agents:
+    build:
+      context: .
+      dockerfile: agents/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    # Pas de `ports:` — le service ne doit jamais être atteignable depuis
+    # l'extérieur. Le timer systemd passe par `docker compose exec`.
+    expose:
+      - "8000"
+    networks:
+      - internal
+    # Playwright ouvrira Chromium quand les scrapers arriveront : sans mémoire
+    # partagée suffisante, le navigateur plante au lancement.
+    shm_size: 1gb
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      AGENTS_BASE_URL: http://agents:8000
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN}
+    depends_on:
+      - agents
+    expose:
+      - "3000"
+    networks:
+      - internal
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:

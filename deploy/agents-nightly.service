@@ -1,0 +1,27 @@
+[Unit]
+Description=Pipeline nocturne de recherche d'emploi
+Documentation=file:///opt/job-search/deploy/README-deploy.md
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/job-search
+
+# Le pipeline est déclenché à l'intérieur du conteneur plutôt que via un port
+# publié : le service `agents` reste ainsi totalement inaccessible depuis
+# l'extérieur, sans exception pour le scheduler.
+ExecStart=/usr/bin/docker compose exec -T agents \
+    python -c "import asyncio; from agents.graph import Pipeline; print(asyncio.run(Pipeline().run()))"
+
+# Une exécution peut être longue (récupération + filtrage + rédaction).
+# Au-delà de 45 min, quelque chose est bloqué : mieux vaut couper que laisser
+# tourner jusqu'au lendemain.
+TimeoutStartSec=2700
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=job-search
+
+[Install]
+WantedBy=multi-user.target

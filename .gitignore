@@ -1,0 +1,29 @@
+# Secrets — ne doivent jamais être versionnés
+.env
+.env.local
+.env.*.local
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Next.js / Node
+node_modules/
+web/.next/
+web/out/
+web/next-env.d.ts
+*.tsbuildinfo
+
+# Sorties locales
+tmp/
+*.docx
+!agents/tests/fixtures/*.docx
+
+# Éditeurs / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
