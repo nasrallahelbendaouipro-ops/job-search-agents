@@ -89,6 +89,16 @@ Le test `test_seed_loads_into_criteria_model` échoue si les deux divergent.
 
 Voir [`deploy/README-deploy.md`](deploy/README-deploy.md).
 
+## Historique du dépôt
+
+Ce dépôt s'ouvre sur un commit unique : la Phase 1 y a été publiée d'un bloc,
+après avoir été prototypée localement hors versionnement. L'historique ne
+reflète donc pas le déroulé réel du développement, et je préfère le dire plutôt
+que de le maquiller après coup.
+
+Les phases suivantes (scrapers Rekrute / HelloWork / StepStone / Xing, cf. le
+tableau d'état plus haut) sont versionnées normalement, commit par commit.
+
 ## Hors périmètre V1
 
 Conformément au cahier des charges : pas de notifications push ou email en
