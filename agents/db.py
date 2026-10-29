@@ -162,6 +162,25 @@ class Database:
         )
         return res.data[0]["id"]
 
+    def letters_generated_today(self) -> int:
+        """Nombre de lettres produites depuis minuit, toutes exécutions confondues.
+
+        En cadence horaire, c'est ce compteur — et non le plafond par exécution —
+        qui borne réellement le nombre de candidatures à relire chaque jour.
+        """
+        now = datetime.now(timezone.utc)
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        res = (
+            self.client.table("applications")
+            .select("id", count="exact")
+            .eq("owner_id", self.owner_id)
+            .gte("created_at", start.isoformat())
+            .execute()
+        )
+        # `count` est renseigné par PostgREST ; on retombe sur la longueur des
+        # données si le comptage exact n'est pas disponible.
+        return res.count if res.count is not None else len(res.data)
+
     # -- Documents -----------------------------------------------------------
 
     def cv_documents(self) -> list[dict[str, Any]]:

@@ -14,7 +14,8 @@ apt update && apt upgrade -y
 apt install -y docker.io docker-compose-v2 git ufw
 ```
 
-Le timer se déclenche sur l'heure locale du serveur — sans ça, « 3 h » sera 3 h UTC :
+Le timer est horaire, donc le fuseau n'affecte pas son déclenchement — mais il
+détermine les dates affichées dans les lettres et les logs :
 
 ```bash
 timedatectl set-timezone Europe/Paris
@@ -100,23 +101,48 @@ docker compose exec agents curl -s localhost:8000/health
 Depuis Internet, `https://<domaine>:8000` doit être injoignable — c'est le
 comportement attendu.
 
-## 5. Installer le déclenchement nocturne
+## 5. Durcir le serveur
+
+Pour un fonctionnement non surveillé, trois choses manquent par défaut : Docker
+ne redémarre pas forcément au boot, les correctifs de sécurité ne s'appliquent
+pas seuls, et SSH est exposé au bourrinage.
 
 ```bash
-cp deploy/agents-nightly.service deploy/agents-nightly.timer /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable --now agents-nightly.timer
+bash deploy/harden-vps.sh
 ```
+
+Le script active Docker au démarrage, installe `unattended-upgrades` (correctifs
+de sécurité uniquement, **sans redémarrage automatique** — un reboot surprise en
+pleine exécution serait pire que le délai d'un correctif), installe `fail2ban`,
+et borne les logs du démon Docker.
+
+Il est idempotent : tu peux le relancer après une mise à jour du projet.
+
+## 6. Installer le déclenchement horaire
+
+```bash
+cp deploy/agents-pipeline.service deploy/agents-pipeline.timer /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now agents-pipeline.timer
+```
+
+La cadence du timer doit rester cohérente avec `RUN_INTERVAL_HOURS` dans
+`.env` : c'est cette variable qui fixe la fenêtre de recherche envoyée aux
+sources. Un timer horaire avec `RUN_INTERVAL_HOURS=24` interrogerait 26 h
+d'offres chaque heure pour rien ; l'inverse ferait rater des annonces.
+
+Le nombre de lettres est borné par `MAX_LETTERS_PER_DAY` (10 par défaut),
+toutes exécutions confondues — pas par exécution.
 
 Contrôles :
 
 ```bash
-systemctl list-timers agents-nightly.timer   # prochaine exécution vers 03:00
-systemctl start agents-nightly.service        # déclenchement manuel immédiat
-journalctl -u agents-nightly.service -n 100 --no-pager
+systemctl list-timers agents-pipeline.timer   # prochaine exécution dans l'heure
+systemctl start agents-pipeline.service        # déclenchement manuel immédiat
+journalctl -u agents-pipeline.service -n 100 --no-pager
 ```
 
-## 6. Vérifier le premier passage
+## 7. Vérifier le premier passage
 
 Après une exécution manuelle, ouvre le dashboard :
 
@@ -128,6 +154,24 @@ Après une exécution manuelle, ouvre le dashboard :
 Tant que `auto_send_enabled` est à `false` (le défaut), aucune candidature
 n'est transmise : le pipeline prépare, tu décides.
 
+## Vérifier que ça survit à un redémarrage
+
+C'est le test qui valide réellement le 24/7 :
+
+```bash
+reboot
+```
+
+Reconnecte-toi deux minutes plus tard et vérifie que tout est remonté seul :
+
+```bash
+docker compose ps                              # les 3 services en « Up »
+systemctl list-timers agents-pipeline.timer    # prochaine exécution dans l'heure
+curl -sI https://<domaine> | head -1           # le dashboard répond
+```
+
+Si un service manque, c'est que `harden-vps.sh` n'a pas été exécuté.
+
 ## Exploitation courante
 
 ```bash
@@ -137,8 +181,8 @@ docker compose logs -f agents
 # Mise à jour du code
 cd /opt/job-search && git pull && docker compose up -d --build
 
-# Suspendre les exécutions nocturnes
-systemctl disable --now agents-nightly.timer
+# Suspendre les exécutions
+systemctl disable --now agents-pipeline.timer
 ```
 
 ## Sauvegardes

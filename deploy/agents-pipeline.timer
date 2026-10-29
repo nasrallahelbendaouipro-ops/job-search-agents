@@ -1,0 +1,18 @@
+[Unit]
+Description=Déclenche le pipeline de recherche d'emploi toutes les heures
+
+[Timer]
+# Au début de chaque heure. La cadence doit rester cohérente avec
+# RUN_INTERVAL_HOURS dans .env : c'est elle qui détermine la fenêtre de
+# recherche demandée aux sources.
+OnCalendar=hourly
+
+# Rattrape l'exécution manquée si le VPS était éteint ou en redémarrage.
+Persistent=true
+
+# Étale le démarrage sur 5 minutes : inutile de taper l'API France Travail
+# pile à l'heure ronde, en même temps que tout le monde.
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

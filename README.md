@@ -1,9 +1,9 @@
 # Plateforme d'agents IA — recherche d'emploi automatisée
 
-Dashboard personnel qui, chaque nuit, récupère les offres d'emploi, les filtre
-selon des critères configurables, rédige une lettre de motivation pour celles
-qui sont retenues, et prépare la candidature. Le matin, tout est prêt à être
-relu et envoyé.
+Dashboard personnel qui, **toutes les heures**, récupère les offres d'emploi,
+les filtre selon des critères configurables, rédige une lettre de motivation
+pour celles qui sont retenues, et prépare la candidature. Tu ouvres le
+dashboard quand tu veux : ce qui est prêt t'attend.
 
 **Le pipeline ne postule jamais tout seul.** Il prépare et s'arrête. L'envoi est
 une action que tu déclenches depuis le dashboard, offre par offre.
@@ -51,9 +51,15 @@ Cible : 3 à 8 €/mois. Quatre mécanismes :
 2. **Pré-filtre déterministe** — écarte la majorité des offres sans appel LLM.
 3. **Deux modèles** — un modèle low-cost pour classer, Claude Haiku 4.5
    (1 $ / 5 $ par 1M tokens) seulement pour rédiger.
-4. **Plafonds** — budget mensuel en euros, nombre de lettres par nuit, nombre
-   d'offres classées par nuit. Chaque appel est journalisé dans `llm_usage` et
+4. **Plafonds** — budget mensuel en euros, lettres **par jour** (et non par
+   exécution : en cadence horaire c'est le seul qui borne vraiment), offres
+   classées par exécution. Chaque appel est journalisé dans `llm_usage` et
    affiché sur `/runs`.
+
+Mesuré avec les tarifs réels : **~0,80 €/mois** en cadence horaire. Tourner
+24 fois par jour au lieu d'une ne coûte que 0,06 € de plus, parce que la
+déduplication fait qu'on ne paie que les offres réellement nouvelles — et il y
+en a autant par jour quelle que soit la fréquence.
 
 Le dépassement du plafond n'est pas une erreur : l'exécution se termine
 proprement en `budget_exceeded` avec tout ce qui a été produit jusque-là.

@@ -40,13 +40,31 @@ class FranceTravailSource(JobSource):
     name = "france_travail"
     country = "FR"
 
-    def __init__(self, client_id: str, client_secret: str, *, lookback_hours: int = 26):
+    #: Marge ajoutée à l'intervalle entre deux exécutions. Couvre le décalage
+    #: du timer (`RandomizedDelaySec`), une exécution ratée, et la latence de
+    #: publication côté France Travail. La déduplication en base absorbe le
+    #: recouvrement sans coût LLM.
+    OVERLAP_HOURS = 2.0
+
+    def __init__(
+        self,
+        client_id: str,
+        client_secret: str,
+        *,
+        lookback_hours: float | None = None,
+        run_interval_hours: float = 24.0,
+    ):
         self._client_id = client_id
         self._client_secret = client_secret
-        # 26 h plutôt que 24 : recouvrement volontaire entre deux exécutions
-        # nocturnes, pour ne pas rater une offre publiée pile à la frontière.
-        # La déduplication en base absorbe le surplus.
-        self._lookback_hours = lookback_hours
+        # La fenêtre suit la cadence réelle : en horaire on demande 3 h, pas
+        # 26 h. Interroger 26 h toutes les heures ne coûterait rien en LLM
+        # (déduplication) mais multiplierait par 25 les appels à l'API, au
+        # risque d'en toucher les quotas.
+        self._lookback_hours = (
+            lookback_hours
+            if lookback_hours is not None
+            else run_interval_hours + self.OVERLAP_HOURS
+        )
         self._token: str | None = None
         self._token_expiry: datetime = datetime.min.replace(tzinfo=timezone.utc)
 

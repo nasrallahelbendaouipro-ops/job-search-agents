@@ -59,6 +59,7 @@ def build_sources(settings) -> list[JobSource]:
         FranceTravailSource(
             settings.france_travail_client_id,
             settings.france_travail_client_secret,
+            run_interval_hours=settings.run_interval_hours,
         )
     ]
 
@@ -168,12 +169,28 @@ class Pipeline:
         if not matched:
             return {"letters_generated": 0, "errors": errors}
 
-        limit = self.settings.max_letters_per_run
+        # Deux plafonds, le plus contraignant gagne. En cadence horaire c'est
+        # presque toujours le plafond quotidien : sans lui, 24 exécutions à
+        # 10 lettres produiraient 240 candidatures par jour.
+        already_today = self.db.letters_generated_today()
+        remaining_today = max(0, self.settings.max_letters_per_day - already_today)
+
+        if remaining_today == 0:
+            logger.info(
+                "Plafond quotidien atteint (%d lettres déjà produites aujourd'hui) — "
+                "aucune rédaction sur cette exécution.",
+                already_today,
+            )
+            return {"letters_generated": 0, "errors": errors}
+
+        limit = min(self.settings.max_letters_per_run, remaining_today)
         if len(matched) > limit:
             logger.info(
-                "Plafond par exécution : %d lettres sur %d offres retenues.",
+                "Plafond appliqué : %d lettres sur %d offres retenues "
+                "(%d déjà produites aujourd'hui).",
                 limit,
                 len(matched),
+                already_today,
             )
             matched = matched[:limit]
 

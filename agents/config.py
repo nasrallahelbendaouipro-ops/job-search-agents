@@ -36,9 +36,21 @@ class Settings(BaseSettings):
     filter_model: str = "deepseek-v4-flash"
     filter_base_url: str = "https://api.deepseek.com/v1"
 
+    # Cadence
+    #: Intervalle entre deux exécutions, en heures. Doit correspondre au timer
+    #: systemd (`deploy/agents-nightly.timer`). La fenêtre de recherche des
+    #: sources en est déduite : sans ça, une exécution horaire réinterrogerait
+    #: 26 h d'offres à chaque passage, pour des annonces déjà en base.
+    run_interval_hours: float = 1.0
+
     # Plafonds
     monthly_budget_eur: float = 10.0
+    #: Plafond par exécution. Protège une exécution qui dérape.
     max_letters_per_run: int = 10
+    #: Plafond par jour, toutes exécutions confondues. C'est celui qui compte
+    #: en cadence horaire : sans lui, 24 exécutions × 10 lettres = 240 lettres
+    #: par jour, soit autant de candidatures à relire.
+    max_letters_per_day: int = 10
     max_offers_to_classify_per_run: int = 120
 
     # Sécurité interne
